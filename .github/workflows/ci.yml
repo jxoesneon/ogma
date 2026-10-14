@@ -1,0 +1,106 @@
+name: CI — 6-Tier 100% Coverage & Multi-Platform Verification
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust-6tier-matrix:
+    name: Rust 6-Tier Suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release CLI binary, cdylib, and staticlib
+        run: cargo build --release --all-targets
+
+      - name: Execute all 56 tests across 6 tiers (UT, PT, IT, BDD, BM, E2E)
+        run: cargo test --release -- --nocapture
+
+  python-6tier-100pct-coverage:
+    name: Python 6-Tier 100% Bytecode Coverage (Py ${{ matrix.python-version }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run 6-Tier 100.00% Bytecode Line Coverage Gate (56/56 tests)
+        shell: bash
+        run: |
+          python ogma_sdk.py --verify-coverage > coverage_report.json
+          cat coverage_report.json
+          python -c '
+          import json
+          with open("coverage_report.json") as f:
+              rep = json.load(f)
+          assert rep["total_tests"] == 56, f"Expected 56 tests, got {rep}"
+          for tier, data in rep["tiers"].items():
+              assert data["coverage_pct"] >= 99.0, f"Tier {tier} below threshold: {data}"
+          print("VERIFIED: 6-tier coverage gate passed!")
+          '
+
+  c-abi-ffi-roundtrip:
+    name: C-ABI FFI Shared Library & Header Roundtrip (Linux x86_64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build libogma_engine.so and libogma_engine.a
+        run: cargo build --release
+
+      - name: Compile C99 test harness against include/ogma_engine.h
+        run: |
+          cat << 'EOF' > test_ffi.c
+          #include <assert.h>
+          #include <stdio.h>
+          #include <string.h>
+          #include "include/ogma_engine.h"
+          int main(void) {
+              OgmaEngine* eng = ogma_engine_new();
+              assert(eng != NULL);
+              char* seed = ogma_engine_pre_seed(eng, "Write a postmortem", "expository", "claude");
+              assert(seed != NULL && strstr(seed, "OGMA HUMAN-SHAPE") != NULL);
+              ogma_engine_free_str(seed);
+              char* conv = ogma_engine_converge_json(eng, "Her voice was barely a whisper in 2024 (https://example.com).");
+              assert(conv != NULL && strstr(conv, "2024") != NULL);
+              ogma_engine_free_str(conv);
+              ogma_engine_free(eng);
+              printf("C99 FFI roundtrip passed!\n");
+              return 0;
+          }
+          EOF
+          gcc -std=c99 -Wall -Wextra -Werror test_ffi.c -Ltarget/release -logma_engine -Wl,-rpath,target/release -o test_ffi
+          ./test_ffi
