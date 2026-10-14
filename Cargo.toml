@@ -1,0 +1,30 @@
+[package]
+name = "ogma-rs"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Ogma Contributors"]
+description = "Sub-millisecond 30-D structural manifold analysis and multi-pass course-correction engine for AI harnesses (StoryScope + SlopShape)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jxoesneon/ogma"
+homepage = "https://github.com/jxoesneon/ogma"
+documentation = "https://docs.rs/ogma-rs"
+readme = "README.md"
+keywords = ["nlp", "ai-alignment", "writing-shape", "mcp", "sarif"]
+categories = ["command-line-utilities", "text-processing", "science", "development-tools::ffi"]
+
+[lib]
+name = "ogma_engine"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "ogma"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

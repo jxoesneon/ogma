@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ogma-rs"
+version = "1.0.0"
+description = "Omni-compatible Python & C-ABI FFI SDK for Ogma (ogma-rs): 30-D human writing shape analysis and multi-pass course-correction"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT OR Apache-2.0"}
+authors = [{name = "Ogma Contributors"}]
+keywords = ["ogma", "storyscope", "slopshape", "mcp", "sarif", "ffi"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/jxoesneon/ogma"
+Repository = "https://github.com/jxoesneon/ogma"
+Issues = "https://github.com/jxoesneon/ogma/issues"
+
+[project.scripts]
+ogma-py = "ogma_sdk:main"
+
+[tool.setuptools]
+py-modules = ["ogma_sdk"]
+include-package-data = true
