@@ -634,14 +634,67 @@ class OgmaFfiClient:
 def handle_mcp_jsonrpc_line(engine: OgmaEngine, line: str) -> str:
     req = json.loads(line)
     method = req.get("method", "")
-    req_id = req.get("id", 1)
+    req_id = req.get("id")
     params = req.get("params", {})
+    if method == "notifications/initialized":
+        return ""
     if method == "initialize":
-        result: Any = {"protocolVersion": "2024-11-05", "serverInfo": {"name": "ogma-rs", "version": "1.0.0"}}
+        result: Any = {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": "ogma-rs", "version": "1.0.0"}
+        }
     elif method == "tools/list":
         result = {"tools": [
-            {"name": "ogma_pre_seed"}, {"name": "ogma_analyze"},
-            {"name": "ogma_course_correct"}, {"name": "ogma_converge"},
+            {
+                "name": "ogma_pre_seed",
+                "description": "Generate structural steering prompt seed to prevent AI writing shape collapse",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {"type": "string", "description": "User prompt or intent"},
+                        "domain": {"type": "string", "description": "expository, fiction, or auto", "default": "auto"},
+                        "model": {"type": "string", "description": "gpt, claude, gemini, deepseek, kimi, or auto", "default": "auto"}
+                    },
+                    "required": ["prompt"]
+                }
+            },
+            {
+                "name": "ogma_analyze",
+                "description": "Analyze text against 30-D structural manifold and output diagnostic report",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Draft text to analyze"},
+                        "domain": {"type": "string", "description": "Writing domain: expository, fiction, or auto", "default": "auto"}
+                    },
+                    "required": ["text"]
+                }
+            },
+            {
+                "name": "ogma_course_correct",
+                "description": "Surgically repair text using 12 deterministic structural operators while preserving dates and URLs",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Draft text to repair"},
+                        "domain": {"type": "string", "description": "Writing domain: expository, fiction, or auto", "default": "auto"}
+                    },
+                    "required": ["text"]
+                }
+            },
+            {
+                "name": "ogma_converge",
+                "description": "Execute multi-pass convergence loop until text clears human manifold shape gate",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Draft text to converge"},
+                        "domain": {"type": "string", "description": "Writing domain: expository, fiction, or auto", "default": "auto"}
+                    },
+                    "required": ["text"]
+                }
+            },
         ]}
     elif method == "tools/call":
         tname = params.get("name", "")
@@ -659,7 +712,7 @@ def handle_mcp_jsonrpc_line(engine: OgmaEngine, line: str) -> str:
         result = {"content": [{"type": "text", "text": payload}]}
     else:
         result = {"status": "unknown_method"}
-    return json.dumps({"jsonrpc": "2.0", "id": req_id, "result": result})
+    return json.dumps({"jsonrpc": "2.0", "id": req_id if req_id is not None else 1, "result": result})
 
 
 def run_cli_args(engine: OgmaEngine, args: List[str], stdin_text: str = "") -> str:
@@ -679,7 +732,7 @@ def run_cli_args(engine: OgmaEngine, args: List[str], stdin_text: str = "") -> s
         uri = args[1] if len(args) > 1 else "stdin.md"
         return engine.analyze_and_correct(stdin_text, "auto").to_sarif_json(uri)
     if cmd == "mcp":
-        return "\n".join(handle_mcp_jsonrpc_line(engine, ln) for ln in stdin_text.splitlines() if ln.strip())
+        return "\n".join(r for r in (handle_mcp_jsonrpc_line(engine, ln) for ln in stdin_text.splitlines() if ln.strip()) if r)
     sample = (
         "Sure, here is the draft: In today's fast-paced digital landscape, her voice was barely a whisper as the room "
         "smelled of ozone and copper under flickering fluorescent lights in 2024 (https://arxiv.org/html/2604.03136v6). "
@@ -784,6 +837,7 @@ def _execute_comprehensive_suite_on_engine(eng: OgmaEngine, so_path: Optional[st
     assert eng.execute_multi_pass_convergence(already_human, "expository", max_epochs=2).epochs_executed >= 1
     mcp_reqs = "\n".join([
         json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize"}),
+        json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
         json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
         json.dumps({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "ogma_pre_seed", "arguments": {"prompt": "Write a story"}}}),
         json.dumps({"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "ogma_analyze", "arguments": {"text": ai_fic}}}),
@@ -924,6 +978,16 @@ def verify_six_tier_100_percent_coverage() -> Dict[str, Any]:
 def main() -> None:
     if "--verify-coverage" in sys.argv:
         print(json.dumps(verify_six_tier_100_percent_coverage(), indent=2))
+    elif len(sys.argv) > 1 and sys.argv[1] == "mcp":
+        eng = OgmaEngine(20, 80)
+        for raw_line in sys.stdin:
+            line = raw_line.strip()
+            if not line:
+                continue
+            resp = handle_mcp_jsonrpc_line(eng, line)
+            if resp:
+                sys.stdout.write(resp + "\n")
+                sys.stdout.flush()
     else:
         eng = OgmaEngine(20, 80)
         stdin_data = sys.stdin.read() if not sys.stdin.isatty() else ""

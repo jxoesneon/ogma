@@ -1,0 +1,14 @@
+{
+  "mcp": {
+    "servers": {
+      "ogma": {
+        "type": "local",
+        "command": [
+          "python3",
+          "ogma_sdk.py",
+          "mcp"
+        ]
+      }
+    }
+  }
+}
