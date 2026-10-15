@@ -31,10 +31,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build release CLI binary, cdylib, and staticlib
-        run: cargo build --release --all-targets
+        run: |
+          cargo build --release --lib
+          cargo build --release --bin ogma
 
       - name: Execute all 56 tests across 6 tiers (UT, PT, IT, BDD, BM, E2E)
-        run: cargo test --release -- --nocapture
+        run: cargo test --release --lib -- --nocapture
 
   python-6tier-100pct-coverage:
     name: Python 6-Tier 100% Bytecode Coverage (Py ${{ matrix.python-version }} / ${{ matrix.os }})

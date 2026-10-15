@@ -11,6 +11,7 @@
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
+#[cfg(test)]
 use std::time::Instant;
 
 pub const DIM: usize = 30;
@@ -626,7 +627,7 @@ impl OgmaEngine {
         let pct = (less_eq as f64) / (self.sorted_ref_knn_dists.len().max(1) as f64);
         let proj: f64 = (0..DIM).map(|j| (z[j] - self.lda_midpoint[j]) * self.lda_weights[j]).sum();
         let lda = 1.0 / (1.0 + (-0.65 * proj).exp());
-        let attributed_model = if raw[0] > 0.60 || raw[28] > 0.55 {
+        let attributed_model = if raw[0] > 0.45 || raw[28] > 0.55 {
             ModelFamily::AnthropicClaude
         } else if raw[8] > 0.50 || raw[3] > 0.55 {
             ModelFamily::OpenAiGpt
